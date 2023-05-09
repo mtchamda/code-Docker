@@ -1,0 +1,44 @@
+version: '3.8'
+services:
+  nodejs:
+    build: .
+    ports:
+      - "5000:5000"
+    logging:
+      driver: "loki"
+      options:
+        loki-url: "http://loki:3100/loki/api/v1/push"
+        loki-batch-size: "1000"
+        loki-retry-max-attempts: "10"
+        loki-retry-max-interval: "30s"
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      LOG_FORMAT: json
+    depends_on:
+      - promtail
+
+  promtail:
+    image: grafana/promtail:2.3.0
+    command: -config.file=/etc/promtail-config.yaml
+    volumes:
+      - ./promtail-config.yaml:/etc/promtail-config.yaml
+      - /var/log/containers:/var/log/containers
+    ports:
+      - "9080:9080"
+
+  loki:
+    image: grafana/loki:2.3.0
+    ports:
+      - "3100:3100"
+
+  grafana:
+    image: grafana/grafana:8.2.2
+    ports:
+      - "3000:3000"
+    environment:
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    volumes:
+      - ./grafana-data:/var/lib/grafana
+    depends_on:
+      - loki
